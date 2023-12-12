@@ -47,16 +47,16 @@ class Generator(nn.Module):
 
         self.generator = nn.Sequential(
             nn.ConvTranspose2d(z_dim, features_dim*16, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(),
+            nn.BatchNorm2d(features_dim*16),
             nn.ReLU(),
             nn.ConvTranspose2d(features_dim*16, features_dim*8, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(),
+            nn.BatchNorm2d(features_dim*8),
             nn.ReLU(),
             nn.ConvTranspose2d(features_dim*8, features_dim*4, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(),
+            nn.BatchNorm2d(features_dim*4),
             nn.ReLU(),
             nn.ConvTranspose2d(features_dim*4, features_dim, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(),
+            nn.BatchNorm2d(features_dim),
             nn.ReLU(),
             nn.ConvTranspose2d(features_dim, 1, kernel_size=4, stride=2, padding=1),
             nn.Tanh()
@@ -86,12 +86,12 @@ class GAN(L.LightningModule):
     def forward(self, X):
         return self.generator(X)
     
-    # def configure_optimizers(self):
-    #         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.90)
-    #         return {"optimizer": self.optimizer, "lr_scheduler": scheduler}
+    def configure_optimizers(self):
+            # scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.90)
+            return self.gen_optimizer, self.dis_optimizer
 
-    def _step(self, batch):
-        
+    def training_step(self, batch):
+        g_opt, d_opt = self.optimizers()
         imgs, _ = batch
 
         # sample noise
@@ -100,50 +100,49 @@ class GAN(L.LightningModule):
 
         # train generator
         # generate images
-        self.toggle_optimizer(self.gen_optimizer)
-        self.generated_imgs = self(z)
+        self.toggle_optimizer(g_opt)
+        generated_imgs = self(z)
 
         # log sampled images
-        sample_imgs = self.generated_imgs[:6]
+        sample_imgs = generated_imgs[:6]
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image("generated_images", grid, 0)
 
         # ground truth result (ie: all fake)
         # put on GPU because we created this tensor inside training_loop
-        valid = torch.zeros(imgs.size(0), 1)
-        valid = valid.type_as(imgs)
+        real_label = torch.ones((imgs.size(0), 1), device=self.device)
+        fake_label = torch.zeros((imgs.size(0), 1), device=self.device)
+        real_label = real_label.type_as(imgs)
+        fake_label = fake_label.type_as(imgs)
 
         # adversarial loss is binary cross-entropy
-        g_loss = self.loss_fn(self.discriminator(self(z)), valid)
+        g_loss = self.loss_fn(self.discriminator(generated_imgs), real_label)
         self.log("g_loss", g_loss, prog_bar=True)
+        g_opt.zero_grad()
         self.manual_backward(g_loss)
-        self.gen_optimizer.step()
-        self.gen_optimizer.zero_grad()
-        self.untoggle_optimizer(self.gen_optimizer)
+        g_opt.step()
+        
+        self.untoggle_optimizer(g_opt)
 
         # train discriminator
         # Measure discriminator's ability to classify real from generated samples
-        self.toggle_optimizer(self.dis_optimizer)
+        self.toggle_optimizer(d_opt)
 
         # how well can it label as real?
-        valid = torch.ones(imgs.size(0), 1)
-        valid = valid.type_as(imgs)
-
-        real_loss = self.loss_fn(self.discriminator(imgs), valid)
+        real_loss = self.loss_fn(self.discriminator(imgs), real_label)
 
         # how well can it label as fake?
-        fake = torch.zeros(imgs.size(0), 1)
-        fake = fake.type_as(imgs)
-
-        fake_loss = self.loss_fn(self.discriminator(self(z).detach()), fake)
+        fake_loss = self.loss_fn(self.discriminator(self(z).detach()), fake_label)
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
         self.log("d_loss", d_loss, prog_bar=True)
+        d_opt.zero_grad()
         self.manual_backward(d_loss)
-        self.dis_optimizer.step()
-        self.dis_optimizer.zero_grad()
-        self.untoggle_optimizer(self.dis_optimizer)
+        d_opt.step()
+       
+        self.untoggle_optimizer(d_opt)
+
     
     def on_validation_epoch_end(self):
         z = self.validation_z.type_as(self.generator.model[0].weight)
