@@ -4,7 +4,7 @@ from models import GAN
 import lightning as L
 
 logger = TensorBoardLogger("tb_logs", name="mnist_gan_v0")
-dm = MNISTDataModule()
+dm = MNISTDataModule(data_dir='./data/', batch_size=32)
 model = GAN(z_dim=100, img_channels=1, features_dim=64)
 trainer = L.Trainer(
     accelerator="cuda",
