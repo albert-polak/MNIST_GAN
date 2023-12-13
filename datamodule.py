@@ -16,6 +16,7 @@ class MNISTDataModule(L.LightningDataModule):
 
         self.transform = transforms.Compose(
             [
+                transforms.Resize(64),
                 transforms.ToTensor(),
                 transforms.Normalize((0.1307,), (0.3081,)),
             ]
@@ -30,8 +31,8 @@ class MNISTDataModule(L.LightningDataModule):
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            mnist_full = MNIST(self.data_dir, train=True, transform=self.transform)
-            self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
+            self.mnist_train = MNIST(self.data_dir, train=True, transform=self.transform)
+            # self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
@@ -43,8 +44,8 @@ class MNISTDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
         )
 
-    def val_dataloader(self):
-        return DataLoader(self.mnist_val, batch_size=self.batch_size)
+    # def val_dataloader(self):
+    #     return DataLoader(self.mnist_val, batch_size=self.batch_size)
 
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=self.batch_size)
