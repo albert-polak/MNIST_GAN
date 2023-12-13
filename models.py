@@ -137,7 +137,7 @@ class GAN(L.LightningModule):
         real_loss = self.adversarial_loss(disc_real, torch.ones_like(disc_real))
 
         # how well can it label as fake?
-        fake_loss = self.adversarial_loss(disc_fake, torch.ones_like(disc_fake))
+        fake_loss = self.adversarial_loss(disc_fake, torch.zeros_like(disc_fake))
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
