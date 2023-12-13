@@ -84,8 +84,16 @@ class GAN(L.LightningModule):
         self.gen_optimizer = Adam(self.generator.parameters(), lr=self.lr)
         self.dis_optimizer = Adam(self.discriminator.parameters(), lr=self.lr)
 
+        self.initialize_weights(self.generator)
+        self.initialize_weights(self.discriminator)
+
         self.validation_z = torch.randn(32, self.hparams.z_dim, 1, 1)
         
+    def initialize_weights(model):
+        # Initializes weights according to the DCGAN paper
+        for m in model.modules():
+            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
 
     def forward(self, X):
         return self.generator(X)
