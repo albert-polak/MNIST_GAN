@@ -18,7 +18,7 @@ class MNISTDataModule(L.LightningDataModule):
             [
                 transforms.Resize(64),
                 transforms.ToTensor(),
-                transforms.Normalize((0.1307,), (0.3081,)),
+                transforms.Normalize((0.5,), (0.5,)),
             ]
         )
 
@@ -42,6 +42,7 @@ class MNISTDataModule(L.LightningDataModule):
         return DataLoader(
             self.mnist_train,
             batch_size=self.batch_size,
+            shuffle=True
         )
 
     # def val_dataloader(self):
