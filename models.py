@@ -85,6 +85,7 @@ class GAN(L.LightningModule):
         self.dis_optimizer = Adam(self.discriminator.parameters(), lr=self.lr)
 
         self.validation_z = torch.randn(32, self.hparams.z_dim, 1, 1)
+        
 
     def forward(self, X):
         return self.generator(X)
@@ -148,8 +149,9 @@ class GAN(L.LightningModule):
 
 
     def on_train_epoch_end(self):
-        z = self.validation_z.type_as(self.generator.generator[0].weight)
-        # log sampled images
-        sample_imgs = self(z)
-        grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.add_image("generated_images", grid, self.current_epoch)
+        with torch.no_grad():
+            z = self.validation_z.type_as(self.generator.generator[0].weight)
+            # log sampled images
+            sample_imgs = self(z)
+            grid = torchvision.utils.make_grid(sample_imgs)
+            self.logger.experiment.add_image("generated_images", grid, self.current_epoch)
